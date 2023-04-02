@@ -29,6 +29,12 @@ void MainWindow::ButtonSlot()
     int d=20;//диаметр точки
     int x = scaled_img.width() / 2 ,y = scaled_img.height() /2;//координаты желаемого центра точки
 
+
+
+
+
+
+
     //ui->label->setText(QString::number(x) + " " + QString::number(y) + "\n"
     //                   + QString::number(ui->graphicsView->geometry().width()) + " " + QString::number(ui->graphicsView->geometry().height()));
     scene->addEllipse(x - d/2,y - d/2,d,d,Pen_1,Brush_1);//смещаем координаты так чтобы центр оказался в нужном месте
