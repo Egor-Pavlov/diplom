@@ -19,6 +19,8 @@ public:
     ~MainWindow();
 
     virtual void resizeEvent(QResizeEvent *event) override;
+    void DrawScene();
+    void DrawPoint();
 
 private:
     QString path = "";
@@ -28,11 +30,13 @@ private:
     QPixmap image;
     QGraphicsPixmapItem * pixmap_item;
     QPixmap scaled_img;
+    QPoint Point;
 
 signals:
     void SignalFromButton();
 private slots:
     void ButtonSlot();
+    void ButtonSlot2();
 };
 
 #endif // MAINWINDOW\_H
