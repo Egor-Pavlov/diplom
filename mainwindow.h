@@ -4,6 +4,9 @@
 #include <QMainWindow>
 #include <QGraphicsSvgItem>
 #include <QString>
+#include "device.h"
+#include <QVector>
+
 
 
 namespace Ui {
@@ -20,7 +23,7 @@ public:
 
     virtual void resizeEvent(QResizeEvent *event) override;
     void DrawScene();
-    void DrawPoint();
+    void DrawSingleDevice(Device d);
 
 private:
     QString path = "";
@@ -31,6 +34,8 @@ private:
     QGraphicsPixmapItem * pixmap_item;
     QPixmap scaled_img;
     QPoint Point;
+    QVector <Device> Devices;
+
 
 signals:
     void SignalFromButton();
