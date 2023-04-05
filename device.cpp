@@ -1,6 +1,6 @@
 #include "device.h"
 
-Device::Device(QString mac = "", QString name = "", QPoint currentCoord = QPoint(0, 0), int pointsCount = 10)
+Device::Device(QString mac = "", QString name = "", Coordinate currentCoord = Coordinate(), int pointsCount = 10)
 {
     CurrentCoord = currentCoord;
     Name = name;
@@ -12,25 +12,24 @@ Device::Device()
 {
     Name = "";
     MacAddres = "";
-    CurrentCoord = QPoint(0,0);
+    CurrentCoord = Coordinate();
     Route.clear();
 }
 
 //пересчет координат при изменении размеров окна
 void Device::RecalcCoord(double coef)//коэф - отношение старого размера к новому
 {
-    CurrentCoord.setX(CurrentCoord.x() * coef);
-    CurrentCoord.setY(CurrentCoord.y() * coef);
+    CurrentCoord.SetPoint(CurrentCoord.GetX() * coef, CurrentCoord.GetY() * coef);
 
     for(int i = 0; i < Route.size(); i++)
     {
-        Route[i].setX(Route[i].x() * coef);
-        Route[i].setY(Route[i].y() * coef);
+        Route[i].SetPoint(Route[i].GetX() * coef, Route[i].GetY() * coef);
     }
 }
 
-void Device::UpdateCoord(QPoint point, bool NeedToRememberPrevCoord = false)
+void Device::UpdateCoord(Coordinate point, bool NeedToRememberPrevCoord = false)
 {
+
     //если работаем в режиме построения траектории, то сохраним предыдущую координату.
     if(NeedToRememberPrevCoord)
     {
@@ -47,11 +46,16 @@ void Device::UpdateCoord(QPoint point, bool NeedToRememberPrevCoord = false)
     return;
 }
 
-QPoint Device::GetCurrentCoord() const
+bool Device::operator==(const Device &d) const
+{
+    return (d.GetName() == Name && d.GetMacAddres() == MacAddres);
+}
+
+Coordinate Device::GetCurrentCoord() const
 {
     return CurrentCoord;
 }
-QVector <QPoint> Device::GetRoute() const
+QVector <Coordinate> Device::GetRoute() const
 {
     return Route;
 }
@@ -70,4 +74,9 @@ void Device::SetPointsCount(int count)
     return;
 }
 
+void Device::ClearRoute()
+{
+    Route.clear();
+    return;
+}
 

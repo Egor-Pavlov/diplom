@@ -1,13 +1,10 @@
 #ifndef MAINWINDOW\_H
 #define MAINWINDOW\_H
-
 #include <QMainWindow>
 #include <QGraphicsSvgItem>
 #include <QString>
 #include "device.h"
 #include <QVector>
-
-
 
 namespace Ui {
 class MainWindow;
@@ -36,12 +33,19 @@ private:
     QPoint Point;
     QVector <Device> Devices;
 
+    void GetData();
+    void UpdateList();
+    QString Generator(QTime time);
 
 signals:
     void SignalFromButton();
+    void SignalFromCB();
+
 private slots:
+    void FileOpenSlot();
+    void CBSlot();
     void ButtonSlot();
-    void ButtonSlot2();
+
 };
 
 #endif // MAINWINDOW\_H
