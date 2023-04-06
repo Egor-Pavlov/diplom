@@ -7,6 +7,14 @@ Device::Device(QString mac = "", QString name = "", Coordinate currentCoord = Co
     MacAddres = mac;
     PointsCount = pointsCount;
     Route.clear();
+
+    QStringList color = MacAddres.split(':');
+
+    int r = (color[0].toInt(nullptr, 16) + color[1].toInt(nullptr, 16))/2;
+    int g = (color[2].toInt(nullptr, 16) + color[3].toInt(nullptr, 16))/2;
+    int b = (color[4].toInt(nullptr, 16) + color[5].toInt(nullptr, 16))/2;
+
+    Color = QColor(r, g, b);//контур
 }
 Device::Device()
 {
@@ -78,5 +86,9 @@ void Device::ClearRoute()
 {
     Route.clear();
     return;
+}
+QColor Device::GetColor() const
+{
+    return Color;
 }
 

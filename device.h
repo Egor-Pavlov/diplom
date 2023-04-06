@@ -28,12 +28,15 @@ public:
     QVector <Coordinate> GetRoute() const;
     QString GetMacAddres() const;
     QString GetName() const;
+    QColor GetColor() const;
 
     void ClearRoute();
     void SetPointsCount(int count);
     bool operator==(const Device &d) const;
 
 private:
+
+    QColor Color;
     QString MacAddres;
     QString Name;
     Coordinate CurrentCoord;

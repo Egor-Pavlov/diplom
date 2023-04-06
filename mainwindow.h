@@ -39,11 +39,11 @@ private:
 
 signals:
     void SignalFromButton();
-    void SignalFromCB();
+    //void SignalFromCB();
 
 private slots:
     void FileOpenSlot();
-    void CBSlot();
+    void DisplayAllSlot();
     void ButtonSlot();
 
 };
