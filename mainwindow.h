@@ -5,6 +5,7 @@
 #include <QString>
 #include "device.h"
 #include <QVector>
+#include <QTableWidget>
 
 namespace Ui {
 class MainWindow;
@@ -19,18 +20,15 @@ public:
     ~MainWindow();
 
     virtual void resizeEvent(QResizeEvent *event) override;
+    void on_tableWidget_itemClicked(QTableWidgetItem * item);
     void DrawScene();
     void DrawSingleDevice(Device d);
 
 private:
-    QString path = "";
     Ui::MainWindow  *ui;
     QGraphicsScene *scene;
-    QImage *img_object;
-    QPixmap image;
-    QGraphicsPixmapItem * pixmap_item;
+    QString path = "";
     QPixmap scaled_img;
-    QPoint Point;
     QVector <Device> Devices;
 
     void GetData();
@@ -39,7 +37,6 @@ private:
 
 signals:
     void SignalFromButton();
-    //void SignalFromCB();
 
 private slots:
     void FileOpenSlot();

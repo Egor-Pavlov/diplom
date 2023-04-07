@@ -35,11 +35,11 @@ void Device::RecalcCoord(double coef)//коэф - отношение старо�
     }
 }
 
-void Device::UpdateCoord(Coordinate point, bool NeedToRememberPrevCoord = false)
+void Device::UpdateCoord(Coordinate point)
 {
 
     //если работаем в режиме построения траектории, то сохраним предыдущую координату.
-    if(NeedToRememberPrevCoord)
+    if(RouteVisible)
     {
         Route.push_front(CurrentCoord);
         //удаляем самую старую точку
@@ -76,9 +76,32 @@ QString Device::GetName() const
     return Name;
 }
 
+bool Device::GetDeviceVisible() const
+{
+    return IsVisible;
+}
+bool Device::GetRouteVisible() const
+{
+    return RouteVisible;
+}
+
 void Device::SetPointsCount(int count)
 {
     PointsCount = count;
+    return;
+}
+void Device::SetDeviceVisible(bool vis)
+{
+    IsVisible = vis;
+    return;
+}
+void Device::SetRouteVisible(bool vis)
+{
+    RouteVisible = vis;
+    if(vis == false)
+    {
+        Route.clear();
+    }
     return;
 }
 

@@ -4,12 +4,8 @@
 #include "device.cpp"
 #include <QMessageBox>
 
-
 //MainWindow::Generator()
 //{
-
-
-
 
 //}
 
@@ -17,9 +13,10 @@ void MainWindow::GetData()
 {
     //типо запрос к бд
 
-    //находим в какое время обновлялась точка у которой самые старые координаты
-
-    //фильтр устройств
+    //берем устройства у которых есть метка отображать
+    //запрашиваем для всех кроме тех, у кого флаг отображения отрицательный точки свежее текущей
+    //если есть флаг маршрута все кроме самой свежей пишем в маршрут, самую свежую принимаем за текущую координату
+    //если устройство новое - создаем объект device
 
 
     //запрашиваем все точки после этого времени
@@ -35,11 +32,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 {
     ui->setupUi(this);
     ui->pushButton->setText("Нарисовать точку");
-    //Point = Coordinate(0, 0);
     connect(ui->displayAllDeviceButton, SIGNAL(clicked()), this, SLOT(DisplayAllSlot()));
     connect(ui->pushButton, SIGNAL(clicked()), this, SLOT(ButtonSlot()));
     connect(ui->FileOpen, SIGNAL(triggered()), this, SLOT(FileOpenSlot()));
-
 
     QStringList headers;
     headers.append("Цвет");
@@ -50,7 +45,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     ui->tableWidget->setColumnCount(4); // Указываем число колонок
     ui->tableWidget->setShowGrid(true); // Включаем сетку
     // Разрешаем выделение только одного элемента
-    ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+    ui->tableWidget->setSelectionMode(QAbstractItemView::NoSelection);
     // Разрешаем выделение построчно
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
     // Устанавливаем заголовки колонок
@@ -58,52 +53,35 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     // Растягиваем последнюю колонку на всё доступное пространство
     ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
     ui->tableWidget->setColumnWidth(0, 40);
-    // Скрываем колонку под номером 0
-    //ui->tableWidget->hideColumn(0);
-
 }
 
 void MainWindow::ButtonSlot()
 {
-    //спавн в центре потому что генерируется
-
     if(path == "")
     {
         QMessageBox::warning(this, "Ошибка","Сначала нужно открыть файл!");
         return;
     }
 
+    //обновляем флаги отображения в объектах
+    for(int i = 0; i < Devices.size(); i++)
+    {
+        Devices[i].SetDeviceVisible(ui->tableWidget->item(i, 2)->checkState());
+        Devices[i].SetRouteVisible(ui->tableWidget->item(i, 3)->checkState());
+    }
+
     //типо распаковали данные
     Device * d = new Device("EC:2E:FF:73:A1:CB", "mobile",
                             Coordinate(20 + rand() % scaled_img.width() - 20, 20 + rand() %scaled_img.height() - 20,
-                                       QTime(0,0,0,0)), 100);
+                                       QTime(0,0,0,0)), 10);
 
     Device * d1 = new Device("13:E0:0F:99:CC:AA", "Iphone",
                             Coordinate(20 + rand() % scaled_img.width() - 20, 20 + rand() %scaled_img.height() - 20,
-                                       QTime(0,0,0,0)), 100);
-
-
-    //ПОТОМ НАДО УБРАТЬ!!!
-    //==========================================================================================================
-    if (d->GetCurrentCoord().GetX() <= 0 || d->GetCurrentCoord().GetX() >= scaled_img.width()
-            || d->GetCurrentCoord().GetY() <= 0 || d->GetCurrentCoord().GetY() >= scaled_img.height())
-    {
-        d->UpdateCoord(Coordinate(scaled_img.width() / 2, scaled_img.height() / 2, QTime::currentTime()), false);
-    }
-
-    else
-    {
-        d->UpdateCoord(Coordinate(d->GetCurrentCoord().GetX() + (-30 + rand() % 60),
-                           d->GetCurrentCoord().GetY() + (-30 + rand() % 60), QTime::currentTime()), false);
-    }
-    //==========================================================================================================
-
-
+                                       QTime(0,0,0,0)), 10);
 
     QVector <Device> devices_temp;
     devices_temp.push_back(*d);
     devices_temp.push_back(*d1);
-
 
     for(int i = 0; i < devices_temp.size(); i++)
     {
@@ -116,9 +94,8 @@ void MainWindow::ButtonSlot()
         }
         else
         {
-            Devices[index].UpdateCoord(devices_temp[i].GetCurrentCoord(), ui->tableWidget->item(index, 3)->checkState());
+            Devices[index].UpdateCoord(devices_temp[i].GetCurrentCoord());
         }
-
     }
 
     //рисуем точки и линии
@@ -132,8 +109,8 @@ void MainWindow::ButtonSlot()
 
 void MainWindow::FileOpenSlot()
 {
-    //path = "C:/qt proj/untitled/image.jpg";
-    path = QFileDialog::getOpenFileName(this, "Выбор плана", "/", "*.jpg");
+    path = "C:/qt proj/untitled/image.jpg";
+    //path = QFileDialog::getOpenFileName(this, "Выбор плана", "/", "*.jpg");
     DrawScene();
     //emit SignalFromButton();
 }
@@ -141,16 +118,14 @@ void MainWindow::DrawScene()
 {
     scene = new QGraphicsScene(this);
     ui->graphicsView->setScene(scene);
-    img_object = new QImage();
+    QImage *img_object = new QImage();
+    //QGraphicsPixmapItem * pixmap_item;
     img_object->load(path);
-    image = QPixmap::fromImage(*img_object);
+    QPixmap image = QPixmap::fromImage(*img_object);
     scaled_img = image.scaled(ui->graphicsView->geometry().width(), ui->graphicsView->geometry().height(), Qt::KeepAspectRatio);
-
     scene->addPixmap(scaled_img);
     scene->setSceneRect(scaled_img.rect());
 }
-
-
 
 void MainWindow::UpdateList()
 {
@@ -182,24 +157,19 @@ void MainWindow::UpdateList()
 
 void MainWindow::DrawSingleDevice(Device d)
 {
-
-    if(ui->tableWidget->item(Devices.indexOf(d), 2)->checkState())
+    if(d.GetDeviceVisible())
     {
-
         QPen Pen_1 (d.GetColor());//контур
         QBrush Brush_1 (d.GetColor());//заполнение
-        //====================================
 
         Pen_1.setWidth(3);//толщина контура
         int D=20;//диаметр точки
 
-        bool NeedRoute = bool(ui->tableWidget->item(Devices.indexOf(d), 3)->checkState());
         //рисуем маршрут
-        if (NeedRoute)
+        if (d.GetRouteVisible())
         {
             QVector <Coordinate> points = d.GetRoute();
             points.push_front(d.GetCurrentCoord());
-
 
             for(int i = 0; i < points.size() - 1; i++)
             {
@@ -234,20 +204,17 @@ void MainWindow::resizeEvent(QResizeEvent *event)
                 DrawSingleDevice(Devices[i]);
             }
         }
-
     }
 }
 
 void MainWindow::DisplayAllSlot()
 {
     //ставим галочки во все строки таблицы
-
     for(int i = 0; i < ui->tableWidget->rowCount(); i++)
     {
         ui->tableWidget->item(i, 2)->setCheckState(Qt::Checked);
     }
-
-     emit SignalFromButton();
+    emit SignalFromButton();
 }
 
 MainWindow::~MainWindow()
