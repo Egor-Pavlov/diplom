@@ -4,6 +4,8 @@
 #include <QPoint>
 #include <QVector>
 #include "coordinate.h"
+#include <device.h>
+#include <QColor>
 
 //класс для точек:
 //	мак

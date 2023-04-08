@@ -1,13 +1,15 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QFileDialog>
-#include "device.cpp"
+#include "device.h"
+#include "datagenerator.h"
 #include <QMessageBox>
 
 //MainWindow::Generator()
 //{
 
 //}
+
 
 void MainWindow::GetData()
 {
@@ -18,13 +20,44 @@ void MainWindow::GetData()
     //если есть флаг маршрута все кроме самой свежей пишем в маршрут, самую свежую принимаем за текущую координату
     //если устройство новое - создаем объект device
 
+    DataGenerator generator = DataGenerator();
+    QDateTime ReqTime = QDateTime::currentDateTime();
+    QVector<std::pair<QString, Coordinate>> Data = generator.GenerateCoordinate(Devices, QPoint(scaled_img.width()/2, scaled_img.height()/2));
 
-    //запрашиваем все точки после этого времени
-    //QString jsonData = Generator(time);
-
-    //парсим json
-
-    //передаем новые координаты в объекты или создаем новые объекты, удаляем объекты данных о которых не поступило
+    while(Data.size() > 0)
+    {
+        int index = -1;
+        for(int j = 0; j < Devices.size(); j++)
+        {
+            //проверяем что устройство с таким маком уже известно
+            if(Data[0].first == Devices[j].GetMacAddres())
+            {
+                index = j;
+                break;
+            }
+        }
+        if(index >= 0 )//если известно, то обновляем координаты
+        {
+            Devices[index].UpdateCoord(Data[0].second);
+            Data.removeFirst();
+        }
+        else
+        {//если не известно запрашиваем имя и создаем объект
+            Device * d = new Device(Data[0].first, generator.GenerateName(), Data[0].second, 20);
+            Devices.append(*d);
+            Data.removeFirst();
+        }
+    }
+    //удаляем те по которым нет данных
+    foreach (Device d, Devices)
+    {
+        if(d.GetCurrentCoord().GetDateTime() < ReqTime)
+        Devices.removeAt(Devices.indexOf(d));
+    }
+//    //запрашиваем все точки после этого времени
+//    //QString jsonData = Generator(time);
+//    //парсим json
+//    //передаем новые координаты в объекты или создаем новые объекты, удаляем объекты данных о которых не поступило
 }
 
 
@@ -63,47 +96,24 @@ void MainWindow::ButtonSlot()
         return;
     }
 
-    //обновляем флаги отображения в объектах
-    for(int i = 0; i < Devices.size(); i++)
+    if(Devices.size() != 0)
     {
-        Devices[i].SetDeviceVisible(ui->tableWidget->item(i, 2)->checkState());
-        Devices[i].SetRouteVisible(ui->tableWidget->item(i, 3)->checkState());
-    }
-
-    //типо распаковали данные
-    Device * d = new Device("EC:2E:FF:73:A1:CB", "mobile",
-                            Coordinate(20 + rand() % scaled_img.width() - 20, 20 + rand() %scaled_img.height() - 20,
-                                       QTime(0,0,0,0)), 10);
-
-    Device * d1 = new Device("13:E0:0F:99:CC:AA", "Iphone",
-                            Coordinate(20 + rand() % scaled_img.width() - 20, 20 + rand() %scaled_img.height() - 20,
-                                       QTime(0,0,0,0)), 10);
-
-    QVector <Device> devices_temp;
-    devices_temp.push_back(*d);
-    devices_temp.push_back(*d1);
-
-    for(int i = 0; i < devices_temp.size(); i++)
-    {
-        int index = Devices.indexOf(devices_temp[i], 0);
-
-        if(index == -1)
+        //обновляем флаги отображения в объектах
+        for(int i = 0; i < Devices.size(); i++)
         {
-            Devices.append(devices_temp[i]);
-            UpdateList();
-        }
-        else
-        {
-            Devices[index].UpdateCoord(devices_temp[i].GetCurrentCoord());
+            Devices[i].SetDeviceVisible(ui->tableWidget->item(i, 2)->checkState());
+            Devices[i].SetRouteVisible(ui->tableWidget->item(i, 3)->checkState());
         }
     }
 
+    GetData();
     //рисуем точки и линии
     DrawScene();//очищаем сцену
     for (int i = 0; i < Devices.size(); i++)
     {
         DrawSingleDevice(Devices[i]);
     }
+    UpdateList();
     emit SignalFromButton();
 }
 
@@ -144,12 +154,21 @@ void MainWindow::UpdateList()
         ui->tableWidget->setItem(i,1, new QTableWidgetItem(Devices[i].GetName()));
         //отображать?
         QTableWidgetItem *item = new QTableWidgetItem();
-        item->setCheckState(Qt::Checked);
+        if(Devices[i].GetDeviceVisible())
+            item->setCheckState(Qt::Checked);
+        else
+            item->setCheckState(Qt::Unchecked);
+
         item->setTextAlignment(Qt::AlignCenter);
         ui->tableWidget->setItem(i, 2, item);
         //показать маршрут?
         item = new QTableWidgetItem();
-        item->setCheckState(Qt::Unchecked);
+
+        if(Devices[i].GetRouteVisible())
+            item->setCheckState(Qt::Checked);
+        else
+            item->setCheckState(Qt::Unchecked);
+
         item->setTextAlignment(Qt::AlignCenter);
         ui->tableWidget->setItem(i, 3, item);
     }

@@ -35,6 +35,7 @@ private:
     void UpdateList();
     QString Generator(QTime time);
 
+
 signals:
     void SignalFromButton();
 

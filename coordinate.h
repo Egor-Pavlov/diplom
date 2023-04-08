@@ -8,18 +8,18 @@ class Coordinate
 {
 public:
     Coordinate();
-    Coordinate(QPoint point, QTime time);
-    Coordinate(int x, int y, QTime time);
+    Coordinate(QPoint point, QDateTime DateTime);
+    Coordinate(int x, int y, QDateTime DateTime);
     int GetX() const;
     int GetY() const;
-    QTime GetTime() const;
+    QDateTime GetDateTime() const;
     void SetPoint(QPoint point);
     void SetPoint(int x, int y);
 
 private:
     QPoint Point;
     //время в которое координата была зафиксирована
-    QTime Time;
+    QDateTime DateTime;
 
 };
 

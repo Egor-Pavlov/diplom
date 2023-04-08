@@ -13,12 +13,14 @@ CONFIG += c++11
 
 SOURCES += \
     coordinate.cpp \
+    datagenerator.cpp \
     device.cpp \
     main.cpp \
     mainwindow.cpp
 
 HEADERS += \
     coordinate.h \
+    datagenerator.h \
     device.h \
     mainwindow.h
 

@@ -3,17 +3,17 @@
 Coordinate::Coordinate()
 {
     Point = QPoint(0,0);
-    Time = QTime(0,0,0,0);
+    DateTime = QDateTime::currentDateTime();
 }
-Coordinate::Coordinate(QPoint point = QPoint(0,0), QTime time = QTime(0,0,0,0))
+Coordinate::Coordinate(QPoint point = QPoint(0,0), QDateTime dateTime = QDateTime::currentDateTime())
 {
     Point = point;
-    Time = time;
+    DateTime = dateTime;
 }
-Coordinate::Coordinate(int x = 0, int y = 0, QTime time = QTime(0,0,0,0))
+Coordinate::Coordinate(int x = 0, int y = 0, QDateTime dateTime = QDateTime::currentDateTime())
 {
     Point = QPoint(x, y);
-    Time = time;
+    DateTime = dateTime;
 }
 int Coordinate::GetX() const
 {
@@ -23,9 +23,9 @@ int Coordinate::GetY() const
 {
     return Point.y();
 }
-QTime Coordinate::GetTime() const
+QDateTime Coordinate::GetDateTime() const
 {
-    return Time;
+    return DateTime;
 }
 void Coordinate::SetPoint(QPoint point)
 {
