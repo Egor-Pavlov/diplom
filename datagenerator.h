@@ -12,7 +12,7 @@ public:
 
     QString GenerateMacAddress();
     QString GenerateName();
-    QVector<std::pair<QString, Coordinate>> GenerateCoordinate(const QVector<Device>& devices, const QPoint& point);
+    QVector<std::pair<QString, Coordinate>> GenerateCoordinate(const QVector<Device>& devices, const QPoint& point, QDateTime time = QDateTime::currentDateTime());
 };
 
 #endif // DATAGENERATOR_H

@@ -1,6 +1,6 @@
 #include "device.h"
 
-Device::Device(QString mac = "", QString name = "", Coordinate currentCoord = Coordinate(), int pointsCount = 10)
+Device::Device(QString mac = "", QString name = "", Coordinate currentCoord = Coordinate(), int pointsCount)
 {
     CurrentCoord = currentCoord;
     Name = name;
@@ -76,6 +76,11 @@ QString Device::GetName() const
     return Name;
 }
 
+int Device::GetRouteLengh() const
+{
+    return PointsCount;
+}
+
 bool Device::GetDeviceVisible() const
 {
     return IsVisible;
@@ -85,10 +90,17 @@ bool Device::GetRouteVisible() const
     return RouteVisible;
 }
 
-void Device::SetPointsCount(int count)
+bool Device::SetRouteLength(int count)
 {
+    if(count < 0 || (count > 500))
+        return false;
+
     PointsCount = count;
-    return;
+
+    while(Route.size() > PointsCount)
+        Route.removeLast();
+
+    return true;
 }
 void Device::SetDeviceVisible(bool vis)
 {

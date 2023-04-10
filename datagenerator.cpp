@@ -7,7 +7,8 @@
 //вход - мак адреса, выход - <Мак + координата>, делаем updateCoord у объектов у которых совпал мак
 //если мака нет в списке, то есть он пришел впервые, то генерация(запрос) имени и добавление в список
 
-QVector<std::pair<QString, Coordinate>> DataGenerator::GenerateCoordinate(const QVector<Device>& devices, const QPoint& point)
+QVector<std::pair<QString, Coordinate>> DataGenerator::GenerateCoordinate(const QVector<Device>& devices,
+                                                                          const QPoint& point, QDateTime time)
 {
     QVector<std::pair<QString, Coordinate>> Pairs;
 
@@ -17,7 +18,7 @@ QVector<std::pair<QString, Coordinate>> DataGenerator::GenerateCoordinate(const 
 
         int x = -20 + devices[i].GetCurrentCoord().GetX() + rand() % 40;
         int y = devices[i].GetCurrentCoord().GetY() - 20 + rand() % 40;
-        Pairs.append(std::make_pair(devices[i].GetMacAddres(), Coordinate(x, y, QDateTime::currentDateTime())));
+        Pairs.append(std::make_pair(devices[i].GetMacAddres(), Coordinate(x, y, time)));
 
     }
 
@@ -25,13 +26,13 @@ QVector<std::pair<QString, Coordinate>> DataGenerator::GenerateCoordinate(const 
     if (v >= 95)
     {
         //имитация что появилось новое устройство
-        Pairs.append(std::make_pair(GenerateMacAddress(), Coordinate((-50 + point.x()) + rand()% 100, (-50 + point.y()) + rand()% 100,
-                                                                     QDateTime::currentDateTime())));
+        Pairs.append(std::make_pair(GenerateMacAddress(), Coordinate((-50 + point.x()) + rand()% 100,
+                                                                     (-50 + point.y()) + rand()% 100, time)));
     }
 
     else if (v <= 5)
     {
-        if(Pairs.size() > 1)
+        if(Pairs.size() > 4)
         {
             //удаляем одно старое, как будто оно исчезло из помещения
             int a = 0 + rand() % Pairs.size();

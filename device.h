@@ -19,7 +19,7 @@ class Device
 {
 public:
     Device();
-    Device(QString mac, QString name, Coordinate currentCoord, int count);
+    Device(QString mac, QString name, Coordinate currentCoord, int count = 10);
 
     void UpdateCoord(Coordinate point);
 
@@ -33,11 +33,12 @@ public:
     QColor GetColor() const;
     bool GetDeviceVisible() const;
     bool GetRouteVisible() const;
+    int GetRouteLengh() const;
 
+    bool SetRouteLength(int length);
     void SetDeviceVisible(bool vis);
     void SetRouteVisible(bool vis);
     void ClearRoute();
-    void SetPointsCount(int count);
     bool operator==(const Device &d) const;
 
 private:

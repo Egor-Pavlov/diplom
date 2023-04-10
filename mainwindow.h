@@ -6,6 +6,7 @@
 #include "device.h"
 #include <QVector>
 #include <QTableWidget>
+#include <QTimer>
 
 namespace Ui {
 class MainWindow;
@@ -30,6 +31,7 @@ private:
     QString path = "";
     QPixmap scaled_img;
     QVector <Device> Devices;
+    QTimer * Timer;
 
     void GetData();
     void UpdateList();
@@ -43,6 +45,9 @@ private slots:
     void FileOpenSlot();
     void DisplayAllSlot();
     void ButtonSlot();
+    void StartStopSlot();
+
+    void slotTimerAlarm();
 
 };
 
