@@ -7,6 +7,8 @@
 #include <QVector>
 #include <QTableWidget>
 #include <QTimer>
+#include <QTcpServer>
+#include <QTcpSocket>
 
 namespace Ui {
 class MainWindow;
@@ -37,6 +39,7 @@ private:
     void UpdateList();
     QString Generator(QTime time);
 
+    QTcpSocket *socket;
 
 signals:
     void SignalFromButton();
@@ -48,6 +51,8 @@ private slots:
     void StartStopSlot();
 
     void slotTimerAlarm();
+
+    void slotReadyRead();
 
 };
 

@@ -5,6 +5,9 @@
 #include "datagenerator.h"
 #include <QMessageBox>
 #include <QDir>
+#include <QDebug>
+
+
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
@@ -13,12 +16,15 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     ui->dateTimeEdit->setDateTime(QDateTime::currentDateTime());
 
     Timer = new QTimer();
-    connect(Timer, SIGNAL(timeout()), this, SLOT(slotTimerAlarm()));
+    socket = new QTcpSocket(this);
 
+    connect(Timer, SIGNAL(timeout()), this, SLOT(slotTimerAlarm()));
     connect(ui->displayAllDeviceButton, SIGNAL(clicked()), this, SLOT(DisplayAllSlot()));
     connect(ui->PlayButt, SIGNAL(clicked()), this, SLOT(StartStopSlot()));
     connect(ui->pushButton, SIGNAL(clicked()), this, SLOT(ButtonSlot()));
     connect(ui->FileOpen, SIGNAL(triggered()), this, SLOT(FileOpenSlot()));
+    connect(socket, &QTcpSocket::readyRead, this, &MainWindow::slotReadyRead);
+    connect(socket, &QTcpSocket::disconnected, this, &QTcpSocket::deleteLater);
 
     QStringList headers;
     headers.append("Цвет");
@@ -26,7 +32,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     headers.append("Отображать\nна карте");
     headers.append("Показать\nмаршрут");
     headers.append("Длина\nмаршрута");
-
 
     ui->tableWidget->setColumnCount(headers.size()); // Указываем число колонок
     ui->tableWidget->setShowGrid(true); // Включаем сетку
@@ -39,11 +44,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     // Растягиваем последнюю колонку на всё доступное пространство
     ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
     ui->tableWidget->setColumnWidth(0, 40);
+
+
 }
 
 void MainWindow::GetData()
 {
-    //типо запрос к бд
+
+
 
     //берем устройства у которых есть метка отображать
     //запрашиваем для всех кроме тех, у кого флаг отображения отрицательный точки свежее текущей
@@ -93,8 +101,23 @@ void MainWindow::GetData()
 
 void MainWindow::ButtonSlot()
 {
-
     ui->dateTimeEdit->setDateTime(QDateTime::currentDateTime());
+
+    // Устанавливаем соединение с сервером
+    socket->connectToHost("localhost", 6000); // IP-адрес и порт сервера
+    //типо запрос к бд
+
+    // Отправляем JSON-данные на сервер
+    socket->write("Hello from client");
+    socket->flush();
+    socket->waitForBytesWritten();
+
+
+
+
+
+
+
     emit SignalFromButton();
 }
 
@@ -149,6 +172,30 @@ void MainWindow::slotTimerAlarm()
     UpdateList();
 
     ui->dateTimeEdit->setDateTime(ui->dateTimeEdit->dateTime().addSecs(1));
+}
+
+void MainWindow::slotReadyRead()
+{
+    while(socket->bytesAvailable()>0)
+    {
+        QString str = socket->readAll();
+        qDebug() <<str;
+
+//        if(str == "Hello from client")
+//            mTcpSocket->write("Hello from server");
+//        else
+//        {
+//            mTcpSocket->write("Who are you");
+//        }
+        //QByteArray array;
+        //array.append(*str);
+
+        //Обработали
+
+        //отправили
+
+        //
+    }
 }
 
 void MainWindow::FileOpenSlot()
@@ -275,5 +322,6 @@ void MainWindow::DisplayAllSlot()
 
 MainWindow::~MainWindow()
 {
+    socket.disconnectFromHost();
     delete ui;
 }
