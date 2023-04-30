@@ -10,6 +10,7 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 
+
 namespace Ui {
 class MainWindow;
 }
@@ -40,6 +41,14 @@ private:
     QString Generator(QTime time);
 
     QTcpSocket *socket;
+    QByteArray Data;
+
+    bool SocketState = false;
+
+    quint32 nextBlockSize = 0;//размер блока данных
+    void sendToServer(QString str);
+    void unpackData(const QByteArray& data);
+    // Менеджер для работы с сетью
 
 signals:
     void SignalFromButton();
@@ -53,6 +62,8 @@ private slots:
     void slotTimerAlarm();
 
     void slotReadyRead();
+    void slotDisconnected();
+
 
 };
 

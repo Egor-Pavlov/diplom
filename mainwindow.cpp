@@ -1,13 +1,14 @@
+#include "device.h"
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include <QFileDialog>
-#include "device.h"
 #include "datagenerator.h"
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMessageBox>
-#include <QDir>
+#include <QFileDialog>
+#include <QJsonArray>
 #include <QDebug>
-
-
+#include <QDir>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
@@ -18,20 +19,23 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     Timer = new QTimer();
     socket = new QTcpSocket(this);
 
+    // Устанавливаем соединение с сервером
+    socket->connectToHost("127.0.0.1", 2323); // IP-адрес и порт сервера
+
     connect(Timer, SIGNAL(timeout()), this, SLOT(slotTimerAlarm()));
     connect(ui->displayAllDeviceButton, SIGNAL(clicked()), this, SLOT(DisplayAllSlot()));
     connect(ui->PlayButt, SIGNAL(clicked()), this, SLOT(StartStopSlot()));
     connect(ui->pushButton, SIGNAL(clicked()), this, SLOT(ButtonSlot()));
     connect(ui->FileOpen, SIGNAL(triggered()), this, SLOT(FileOpenSlot()));
     connect(socket, &QTcpSocket::readyRead, this, &MainWindow::slotReadyRead);
-    connect(socket, &QTcpSocket::disconnected, this, &QTcpSocket::deleteLater);
+    connect(socket, &QTcpSocket::disconnected, this, &MainWindow::slotDisconnected);
 
     QStringList headers;
     headers.append("Цвет");
     headers.append("Имя");
     headers.append("Отображать\nна карте");
     headers.append("Показать\nмаршрут");
-    headers.append("Длина\nмаршрута");
+    //headers.append("Длина\nмаршрута");
 
     ui->tableWidget->setColumnCount(headers.size()); // Указываем число колонок
     ui->tableWidget->setShowGrid(true); // Включаем сетку
@@ -44,17 +48,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     // Растягиваем последнюю колонку на всё доступное пространство
     ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
     ui->tableWidget->setColumnWidth(0, 40);
-
-
 }
 
 void MainWindow::GetData()
 {
-
-
-
-    //берем устройства у которых есть метка отображать
-    //запрашиваем для всех кроме тех, у кого флаг отображения отрицательный точки свежее текущей
     //если есть флаг маршрута все кроме самой свежей пишем в маршрут, самую свежую принимаем за текущую координату
     //если устройство новое - создаем объект device
 
@@ -99,25 +96,43 @@ void MainWindow::GetData()
 //    //передаем новые координаты в объекты или создаем новые объекты, удаляем объекты данных о которых не поступило
 }
 
+void MainWindow::unpackData(const QByteArray& data)
+{
+    //QJsonDocument jsonDoc = QJsonDocument::fromJson(jsonString.toUtf8());
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+    QJsonObject jsonObj = jsonDoc.object();
+    QJsonArray jsonCoords = jsonObj["coords"].toArray();
+    int index = -1;
+    QJsonObject jsonCoord;
+    for (int i = 0; i < jsonCoords.size(); i++)
+    {
+        jsonCoord = jsonCoords[i].toObject();
+
+        for(int j = 0; j < Devices.size(); j++)
+        {
+            //проверяем что устройство с таким маком уже известно
+            if(jsonCoord["Mac"].toString() == Devices[j].GetMacAddres())
+            {
+                index = j;
+                break;
+            }
+        }
+        Coordinate c = Coordinate(jsonCoord["x"].toInt(), jsonCoord["y"].toInt(), QDateTime::fromString(jsonCoord["dateTime"].toString()));
+        if(index >= 0 )//если известно, то обновляем координаты
+        {
+            Devices[index].UpdateCoord(c);
+        }
+        else
+        {//если не известно создаем объект
+            Device * d = new Device(jsonCoord["Mac"].toString(), jsonCoord["Name"].toString(), c);
+            Devices.append(*d);
+        }
+    }
+}
+
 void MainWindow::ButtonSlot()
 {
     ui->dateTimeEdit->setDateTime(QDateTime::currentDateTime());
-
-    // Устанавливаем соединение с сервером
-    socket->connectToHost("localhost", 6000); // IP-адрес и порт сервера
-    //типо запрос к бд
-
-    // Отправляем JSON-данные на сервер
-    socket->write("Hello from client");
-    socket->flush();
-    socket->waitForBytesWritten();
-
-
-
-
-
-
-
     emit SignalFromButton();
 }
 
@@ -147,22 +162,26 @@ void MainWindow::slotTimerAlarm()
     /* Ежесекундно обновляем данные по текущему времени
      * Перезапускать таймер не требуется
      * */
+
+
     if(Devices.size() != 0)
     {
         //обновляем флаги отображения в объектах
-        for(int i = 0; i < Devices.size(); i++)
+        for(int i = 0; i < ui->tableWidget->rowCount(); i++)
         {
             Devices[i].SetDeviceVisible(ui->tableWidget->item(i, 2)->checkState());
             Devices[i].SetRouteVisible(ui->tableWidget->item(i, 3)->checkState());
-            if(!Devices[i].SetRouteLength(ui->tableWidget->item(i, 4)->text().toInt()))
+            if(!Devices[i].SetRouteLength(ui->tableWidget->item(i, 3)->text().toInt()))
             {
                 QMessageBox::warning(this, "Ошибка","Введена некорректная длина маршрута, введите от 0 до 500!");
             }
 
         }
     }
+
     //запрос данных
-    GetData();
+    sendToServer("http://localhost:6000/user/123");
+
     //рисуем точки и линии
     DrawScene();//очищаем сцену
     for (int i = 0; i < Devices.size(); i++)
@@ -174,27 +193,64 @@ void MainWindow::slotTimerAlarm()
     ui->dateTimeEdit->setDateTime(ui->dateTimeEdit->dateTime().addSecs(1));
 }
 
+void MainWindow::sendToServer(QString str)
+{
+    try
+    {
+        if(socket->state() == QTcpSocket::ConnectedState)
+        {
+            Data.clear();
+            QDataStream out(&Data, QIODevice::WriteOnly);
+            out.setVersion(QDataStream::Qt_6_4);
+            out << quint32(0) << str;
+            out.device()->seek(0);
+            out <<quint32(Data.size() - sizeof(quint16));
+            socket->write(Data);
+        }
+        else
+        {
+
+        }
+    }
+    catch(...)
+    {
+        return;
+    }
+}
+
 void MainWindow::slotReadyRead()
 {
-    while(socket->bytesAvailable()>0)
+    socket = (QTcpSocket*)sender();
+    QDataStream input(socket);
+    input.setVersion(QDataStream::Qt_6_4);
+
+    if(input.status() == QDataStream::Ok)
     {
-        QString str = socket->readAll();
-        qDebug() <<str;
-
-//        if(str == "Hello from client")
-//            mTcpSocket->write("Hello from server");
-//        else
-//        {
-//            mTcpSocket->write("Who are you");
-//        }
-        //QByteArray array;
-        //array.append(*str);
-
-        //Обработали
-
-        //отправили
-
-        //
+        while(true)
+        {
+            //достаточно ли данных для чтения размера блока
+            if (socket->bytesAvailable() < (int)sizeof(quint32))
+            {
+                break;
+            }
+            //если да, то читаем блок
+            quint32 size;
+            QDataStream in(socket);
+            input >> size;
+            //если блок пришел целиком
+            if (socket->bytesAvailable() < size)
+            {
+                break;
+            }
+            //преобразовываем
+            QByteArray data = socket->read(size);
+            unpackData(data);
+            break;
+        }
+    }
+    else
+    {
+        qDebug() << "DataStream err";
     }
 }
 
@@ -253,14 +309,15 @@ void MainWindow::UpdateList()//обновление списка устройс�
 
         item->setTextAlignment(Qt::AlignCenter);
         ui->tableWidget->setItem(i, 3, item);
+        ui->tableWidget->item(i, 3)->setText(QString::number(Devices[i].GetRouteLengh()));
 
-        ui->tableWidget->setItem(i,4, new QTableWidgetItem(QString::fromStdString(std::to_string(Devices[i].GetRouteLengh()))));
+        //ui->tableWidget->setItem(i,4, new QTableWidgetItem(QString::fromStdString(std::to_string(Devices[i].GetRouteLengh()))));
     }
 }
 
 void MainWindow::DrawSingleDevice(Device d)//отрисовка одного устройства
 {
-    if(d.GetDeviceVisible())//если его надо рисовать
+    if(d.GetDeviceVisible()&& d.GetCurrentCoord().GetDateTime().secsTo(QDateTime::fromString(ui->dateTimeEdit->text())) <= 15)//если его надо рисовать
     {
         QPen Pen_1 (d.GetColor());//контур
         QBrush Brush_1 (d.GetColor());//заполнение
@@ -320,8 +377,16 @@ void MainWindow::DisplayAllSlot()
     emit SignalFromButton();
 }
 
+void MainWindow::slotDisconnected()
+{
+    socket->close();
+    QMessageBox::warning(this, "упс","Ваша сессия неожиданно завершилась :(");
+    SocketState = false;
+}
+
+
 MainWindow::~MainWindow()
 {
-    socket.disconnectFromHost();
+    socket->disconnectFromHost();
     delete ui;
 }
