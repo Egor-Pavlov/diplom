@@ -111,20 +111,21 @@ void MainWindow::unpackData(const QByteArray& data)
         for(int j = 0; j < Devices.size(); j++)
         {
             //проверяем что устройство с таким маком уже известно
-            if(jsonCoord["Mac"].toString() == Devices[j].GetMacAddres())
+            if(jsonCoord["mac"].toString() == Devices[j].GetMacAddres())
             {
                 index = j;
                 break;
             }
         }
-        Coordinate c = Coordinate(jsonCoord["x"].toInt(), jsonCoord["y"].toInt(), QDateTime::fromString(jsonCoord["dateTime"].toString()));
+        Coordinate c = Coordinate(jsonCoord["x"].toInt(), jsonCoord["y"].toInt(),
+                QDateTime::fromString(jsonCoord["dateTime"].toString(), Qt::ISODate));
         if(index >= 0 )//если известно, то обновляем координаты
         {
             Devices[index].UpdateCoord(c);
         }
         else
         {//если не известно создаем объект
-            Device * d = new Device(jsonCoord["Mac"].toString(), jsonCoord["Name"].toString(), c);
+            Device * d = new Device(jsonCoord["mac"].toString(), jsonCoord["name"].toString(), c);
             Devices.append(*d);
         }
     }
