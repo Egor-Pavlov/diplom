@@ -10,6 +10,9 @@
 #include <QDebug>
 #include <QDir>
 
+
+#define INTERVAL 60
+
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
@@ -102,32 +105,34 @@ void MainWindow::unpackData(const QByteArray& data)
     QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
     QJsonObject jsonObj = jsonDoc.object();
     QJsonArray jsonCoords = jsonObj["coords"].toArray();
-    int index = -1;
+    bool flag = true;
     QJsonObject jsonCoord;
+    qDebug() << jsonCoords;
     for (int i = 0; i < jsonCoords.size(); i++)
     {
         jsonCoord = jsonCoords[i].toObject();
+        flag = true;
+        Coordinate c = Coordinate(jsonCoord["x"].toInt(), jsonCoord["y"].toInt(),
+                QDateTime::fromString(jsonCoord["dateTime"].toString(), Qt::ISODate));
 
+        //int index = -1;
         for(int j = 0; j < Devices.size(); j++)
         {
             //проверяем что устройство с таким маком уже известно
             if(jsonCoord["mac"].toString() == Devices[j].GetMacAddres())
             {
-                index = j;
+                Devices[j].UpdateCoord(c);
+                flag = false;
                 break;
             }
         }
-        Coordinate c = Coordinate(jsonCoord["x"].toInt(), jsonCoord["y"].toInt(),
-                QDateTime::fromString(jsonCoord["dateTime"].toString(), Qt::ISODate));
-        if(index >= 0 )//если известно, то обновляем координаты
-        {
-            Devices[index].UpdateCoord(c);
-        }
-        else
-        {//если не известно создаем объект
+
+        if(flag)//если известно, то обновляем координаты
+        {           
             Device * d = new Device(jsonCoord["mac"].toString(), jsonCoord["name"].toString(), c);
             Devices.append(*d);
         }
+
     }
 }
 
@@ -181,15 +186,15 @@ void MainWindow::slotTimerAlarm()
     }
 
     //запрос данных
-    sendToServer("http://localhost:6000/user/123");
+    sendToServer(ui->dateTimeEdit->text());
 
+    UpdateList();
     //рисуем точки и линии
     DrawScene();//очищаем сцену
     for (int i = 0; i < Devices.size(); i++)
     {
         DrawSingleDevice(Devices[i]);
     }
-    UpdateList();
 
     ui->dateTimeEdit->setDateTime(ui->dateTimeEdit->dateTime().addSecs(1));
 }
@@ -205,7 +210,8 @@ void MainWindow::sendToServer(QString str)
             out.setVersion(QDataStream::Qt_6_4);
             out << quint32(0) << str;
             out.device()->seek(0);
-            out <<quint32(Data.size() - sizeof(quint16));
+            out <<quint32(Data.size() - sizeof(quint32));
+            qDebug() << str;
             socket->write(Data);
         }
         else
@@ -282,6 +288,16 @@ void MainWindow::UpdateList()//обновление списка устройс�
     {
         ui->tableWidget->removeRow(0);
     }
+
+    //удаляем устройства по которым данные устарели
+    foreach(Device d, Devices)
+    {
+        if(d.GetCurrentCoord().GetDateTime().addSecs(INTERVAL) < QDateTime::fromString(ui->dateTimeEdit->text(), "dd.MM.yyyy H:mm:ss"))
+        {
+            Devices.removeAt(Devices.indexOf(d));
+        }
+    }
+
 //для каждого устройства делаем запись в списке
     for(int i = 0; i < Devices.size(); i++)
     {
