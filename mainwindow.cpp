@@ -10,8 +10,13 @@
 #include <QDebug>
 #include <QDir>
 
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QUrlQuery>
+#include <QEventLoop>
 
-#define INTERVAL 60
+#define INTERVAL 60//интервал времени для выборки из бд
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
@@ -20,24 +25,22 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     ui->dateTimeEdit->setDateTime(QDateTime::currentDateTime());
 
     Timer = new QTimer();
-    socket = new QTcpSocket(this);
-
-    // Устанавливаем соединение с сервером
-    socket->connectToHost("127.0.0.1", 2323); // IP-адрес и порт сервера
 
     connect(Timer, SIGNAL(timeout()), this, SLOT(slotTimerAlarm()));
     connect(ui->displayAllDeviceButton, SIGNAL(clicked()), this, SLOT(DisplayAllSlot()));
     connect(ui->PlayButt, SIGNAL(clicked()), this, SLOT(StartStopSlot()));
     connect(ui->pushButton, SIGNAL(clicked()), this, SLOT(ButtonSlot()));
-    connect(ui->FileOpen, SIGNAL(triggered()), this, SLOT(FileOpenSlot()));
-    connect(socket, &QTcpSocket::readyRead, this, &MainWindow::slotReadyRead);
-    connect(socket, &QTcpSocket::disconnected, this, &MainWindow::slotDisconnected);
+    connect(ui->ChooseArea, SIGNAL(triggered()), this, SLOT(FileOpenSlot()));
+    connect(ui->authButton, SIGNAL(triggered()), this, SLOT(AuthSlot()));
+
+    connect(&dialog, &Dialog::dataReady, this, &MainWindow::onDataReceived);
+    connect(&AreaDialog, &ChooseAreaDialog::areaChoosed, this, &MainWindow::onAreaChoosed);
 
     QStringList headers;
     headers.append("Цвет");
     headers.append("Имя");
     headers.append("Отображать\nна карте");
-    headers.append("Показать\nмаршрут");
+    headers.append("Показать\nмаршрут\n(длина)");
     //headers.append("Длина\nмаршрута");
 
     ui->tableWidget->setColumnCount(headers.size()); // Указываем число колонок
@@ -51,52 +54,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     // Растягиваем последнюю колонку на всё доступное пространство
     ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
     ui->tableWidget->setColumnWidth(0, 40);
-}
 
-void MainWindow::GetData()
-{
-    //если есть флаг маршрута все кроме самой свежей пишем в маршрут, самую свежую принимаем за текущую координату
-    //если устройство новое - создаем объект device
-
-    DataGenerator generator = DataGenerator();
-    QDateTime ReqTime = QDateTime::currentDateTime();
-    QVector<std::pair<QString, Coordinate>> Data = generator.GenerateCoordinate(Devices, QPoint(scaled_img.width()/2,
-                                                                    scaled_img.height()/2));
-
-    while(Data.size() > 0)
-    {
-        int index = -1;
-        for(int j = 0; j < Devices.size(); j++)
-        {
-            //проверяем что устройство с таким маком уже известно
-            if(Data[0].first == Devices[j].GetMacAddres())
-            {
-                index = j;
-                break;
-            }
-        }
-        if(index >= 0 )//если известно, то обновляем координаты
-        {
-            Devices[index].UpdateCoord(Data[0].second);
-            Data.removeFirst();
-        }
-        else
-        {//если не известно запрашиваем имя и создаем объект
-            Device * d = new Device(Data[0].first, generator.GenerateName(), Data[0].second);
-            Devices.append(*d);
-            Data.removeFirst();
-        }
-    }
-    //удаляем те по которым нет данных
-    foreach (Device d, Devices)
-    {
-        if(d.GetCurrentCoord().GetDateTime() < ReqTime)
-        Devices.removeAt(Devices.indexOf(d));
-    }
-//    //запрашиваем все точки после этого времени
-//    //QString jsonData = Generator(time);
-//    //парсим json
-//    //передаем новые координаты в объекты или создаем новые объекты, удаляем объекты данных о которых не поступило
 }
 
 void MainWindow::unpackData(const QByteArray& data)
@@ -104,6 +62,26 @@ void MainWindow::unpackData(const QByteArray& data)
     //QJsonDocument jsonDoc = QJsonDocument::fromJson(jsonString.toUtf8());
     QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
     QJsonObject jsonObj = jsonDoc.object();
+
+    if(jsonObj["code"].toInt() != 200)
+    {
+        QMessageBox::warning(this, "Ошибка",RespCodes.value(jsonObj["code"].toInt()));
+        Timer->stop();
+        ui->PlayButt->setText("▶");
+
+        if(jsonObj["code"].toInt() == 401)
+        {
+            Token = "";
+            path = "";
+            areaId = -1;
+            UpdateList();
+            //рисуем точки и линии
+            DrawScene();//очищаем сцену
+        }
+
+        return;
+    }
+
     QJsonArray jsonCoords = jsonObj["coords"].toArray();
     bool flag = true;
     QJsonObject jsonCoord;
@@ -151,9 +129,9 @@ void MainWindow::StartStopSlot()
     }
     else
     {
-        if(path == "")
+        if(path == "" || Token == "")
         {
-            QMessageBox::warning(this, "Ошибка","Сначала нужно открыть файл!");
+            QMessageBox::warning(this, "Ошибка","Сначала нужно авторизоваться и выбрать помещение для наблюдения!");
             return;
         }
         Timer->start(1000); // И запустим таймер
@@ -168,8 +146,6 @@ void MainWindow::slotTimerAlarm()
     /* Ежесекундно обновляем данные по текущему времени
      * Перезапускать таймер не требуется
      * */
-
-
     if(Devices.size() != 0)
     {
         //обновляем флаги отображения в объектах
@@ -181,12 +157,11 @@ void MainWindow::slotTimerAlarm()
             {
                 QMessageBox::warning(this, "Ошибка","Введена некорректная длина маршрута, введите от 0 до 500!");
             }
-
         }
     }
 
     //запрос данных
-    sendToServer(ui->dateTimeEdit->text());
+    sendToServer(QDateTime::fromString(ui->dateTimeEdit->text(), "dd.MM.yyyy hh:mm:ss").toString("yyyy-MM-dd hh:mm:ss"));
 
     UpdateList();
     //рисуем точки и линии
@@ -201,73 +176,102 @@ void MainWindow::slotTimerAlarm()
 
 void MainWindow::sendToServer(QString str)
 {
-    try
-    {
-        if(socket->state() == QTcpSocket::ConnectedState)
-        {
-            Data.clear();
-            QDataStream out(&Data, QIODevice::WriteOnly);
-            out.setVersion(QDataStream::Qt_6_4);
-            out << quint32(0) << str;
-            out.device()->seek(0);
-            out <<quint32(Data.size() - sizeof(quint32));
-            qDebug() << str;
-            socket->write(Data);
-        }
-        else
-        {
+    // Создаем менеджер доступа к сети
+    QNetworkAccessManager manager;
 
-        }
-    }
-    catch(...)
+    if(Token == "")
     {
+        QMessageBox::warning(this, "Ошибка","Вы не авторизованы");
+        Timer->stop();
+        ui->PlayButt->setText("▶");
         return;
     }
-}
-
-void MainWindow::slotReadyRead()
-{
-    socket = (QTcpSocket*)sender();
-    QDataStream input(socket);
-    input.setVersion(QDataStream::Qt_6_4);
-
-    if(input.status() == QDataStream::Ok)
+    if(str == "")
     {
-        while(true)
-        {
-            //достаточно ли данных для чтения размера блока
-            if (socket->bytesAvailable() < (int)sizeof(quint32))
-            {
-                break;
-            }
-            //если да, то читаем блок
-            quint32 size;
-            QDataStream in(socket);
-            input >> size;
-            //если блок пришел целиком
-            if (socket->bytesAvailable() < size)
-            {
-                break;
-            }
-            //преобразовываем
-            QByteArray data = socket->read(size);
-            unpackData(data);
-            break;
-        }
+        QMessageBox::warning(this, "Ошибка","Не указано время");
+        Timer->stop();
+        ui->PlayButt->setText("▶");
+        return;
+    }
+    if(areaId <= 0)
+    {
+        QMessageBox::warning(this, "Ошибка","Не выбрано помещение");
+        Timer->stop();
+        ui->PlayButt->setText("▶");
+        return;
+    }
+
+    // Создаем URL-адрес с параметрами
+    QUrl url("http://"+IP+":"+QString::number(port)+"/api/positions");
+    QUrlQuery query;
+    query.addQueryItem("token", Token);
+    query.addQueryItem("time", str);
+    query.addQueryItem("areaId", "1");
+    url.setQuery(query);
+
+    // Создаем запрос
+    QNetworkRequest request(url);
+
+    qDebug() << url;
+    // Отправляем GET-запрос
+    QNetworkReply* reply = manager.get(request);
+
+    // Ждем завершения запроса
+    QEventLoop loop;
+    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    loop.exec();
+
+    // Проверяем статус запроса
+    if (reply->error() == QNetworkReply::NoError) {
+        // Получаем ответ от сервера
+        QByteArray response = reply->readAll();
+        // Обрабатываем ответ
+        //qDebug() << "Response:" << response;
+        unpackData(response);
     }
     else
     {
-        qDebug() << "DataStream err";
+        // Возникла ошибка при выполнении запроса
+        qDebug() << "Error:" << reply->errorString();
     }
+
+    // Освобождаем ресурсы
+    reply->deleteLater();
+    return;
 }
 
 void MainWindow::FileOpenSlot()
 {
-    path = "C:/qt proj/untitled/image.jpg";
-    //path = QFileDialog::getOpenFileName(this, "Выбор плана", "/", "*.jpg");
-    DrawScene();
-    //emit SignalFromButton();
+    if(Token == "")
+    {
+        QMessageBox::warning(this, "Ошибка","Вы не авторизованы");
+        return;
+    }
+
+    AreaDialog.setParams(IP, port, Token);
+    AreaDialog.setWindowTitle("Выбор помещения");
+    AreaDialog.exec();
 }
+void MainWindow::AuthSlot()
+{
+    //dialog.setModal(true);
+    dialog.setParams(IP, port);
+    dialog.setWindowTitle("Авторизация");
+    dialog.exec();
+}
+void MainWindow::onDataReceived(const QString& data)
+{
+    // Обработка полученных данных
+    Token = data;
+}
+
+void MainWindow::onAreaChoosed(const QString& data)
+{
+    path = data.split("\n").first();
+    areaId = data.split("\n").last().toInt();
+    DrawScene();
+}
+
 void MainWindow::DrawScene()//отрисовка сцены
 {
     scene = new QGraphicsScene(this);//создаем объект
@@ -394,16 +398,37 @@ void MainWindow::DisplayAllSlot()
     emit SignalFromButton();
 }
 
-void MainWindow::slotDisconnected()
-{
-    socket->close();
-    QMessageBox::warning(this, "упс","Ваша сессия неожиданно завершилась :(");
-    SocketState = false;
-}
-
-
 MainWindow::~MainWindow()
 {
-    socket->disconnectFromHost();
     delete ui;
+}
+
+void MainWindow::on_showDevicesButton_clicked()
+{
+    if(path == "" || Token == "")
+    {
+        QMessageBox::warning(this, "Ошибка","Сначала нужно авторизоваться и выбрать помещение для наблюдения!");
+        return;
+    }
+
+    //запрос данных
+    sendToServer(QDateTime::fromString(ui->dateTimeEdit->text(), "dd.MM.yyyy hh:mm:ss").toString("yyyy-MM-dd hh:mm:ss"));
+
+    UpdateList();
+    //рисуем точки и линии
+    DrawScene();//очищаем сцену
+    for (int i = 0; i < Devices.size(); i++)
+    {
+        DrawSingleDevice(Devices[i]);
+    }
+}
+
+void MainWindow::on_BackButt_clicked()
+{
+    ui->dateTimeEdit->setDateTime(ui->dateTimeEdit->dateTime().addSecs(-interval));
+}
+
+void MainWindow::on_ForwardButt_clicked()
+{
+    ui->dateTimeEdit->setDateTime(ui->dateTimeEdit->dateTime().addSecs(interval));
 }

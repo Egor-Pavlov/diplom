@@ -9,7 +9,9 @@
 #include <QTimer>
 #include <QTcpServer>
 #include <QTcpSocket>
-
+#include <QMap>
+#include <dialog.h>
+#include <chooseareadialog.h>
 
 namespace Ui {
 class MainWindow;
@@ -29,6 +31,17 @@ public:
     void DrawSingleDevice(Device d);
 
 private:
+    //пользовательское
+    QString Token = "";
+    int areaId = -1;
+    int buildingId = -1;
+
+    QString IP = "127.0.0.1";
+    int port = 8080;
+    int interval = 900;//интервал промотки кнопками
+
+
+    //служебное
     Ui::MainWindow  *ui;
     QGraphicsScene *scene;
     QString path = "";
@@ -36,35 +49,43 @@ private:
     QVector <Device> Devices;
     QTimer * Timer;
 
-    void GetData();
     void UpdateList();
     QString Generator(QTime time);
 
-    QTcpSocket *socket;
     QByteArray Data;
-
-    bool SocketState = false;
 
     quint32 nextBlockSize = 0;//размер блока данных
     void sendToServer(QString str);
     void unpackData(const QByteArray& data);
-    // Менеджер для работы с сетью
+
+    Dialog dialog;//окно авторизации
+    ChooseAreaDialog AreaDialog;
+
+
+    QMap<int, QString> RespCodes = {
+            {401, "Вы не авторизованы"},
+            {403, "Доступ запрещен"},
+            {404, "не найдено"}
+        };
 
 signals:
     void SignalFromButton();
 
 private slots:
     void FileOpenSlot();
+    void AuthSlot();
     void DisplayAllSlot();
     void ButtonSlot();
     void StartStopSlot();
 
     void slotTimerAlarm();
 
-    void slotReadyRead();
-    void slotDisconnected();
+    void onDataReceived(const QString& data);
+    void onAreaChoosed(const QString& data);
 
-
+    void on_showDevicesButton_clicked();
+    void on_BackButt_clicked();
+    void on_ForwardButt_clicked();
 };
 
 #endif // MAINWINDOW\_H
