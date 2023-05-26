@@ -122,7 +122,7 @@ void Dialog::on_okButton_clicked()
 
             if(jsonObj["code"].toInt() != 200)
             {
-                QMessageBox::warning(nullptr, "Ошибка", "Вы не авторизованы");
+                QMessageBox::warning(nullptr, "Ошибка", "Неверный логин или пароль");
                 return;
             }
             else

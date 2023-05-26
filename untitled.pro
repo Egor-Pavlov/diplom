@@ -15,7 +15,6 @@ CONFIG += c++11
 SOURCES += \
     chooseareadialog.cpp \
     coordinate.cpp \
-    datagenerator.cpp \
     device.cpp \
     dialog.cpp \
     main.cpp \
@@ -25,7 +24,6 @@ HEADERS += \
     Building.h \
     chooseareadialog.h \
     coordinate.h \
-    datagenerator.h \
     device.h \
     dialog.h \
     mainwindow.h

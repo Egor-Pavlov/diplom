@@ -1,7 +1,7 @@
 #include "device.h"
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include "datagenerator.h"
+
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMessageBox>
@@ -54,12 +54,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     // Растягиваем последнюю колонку на всё доступное пространство
     ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
     ui->tableWidget->setColumnWidth(0, 40);
-
 }
 
 void MainWindow::unpackData(const QByteArray& data)
 {
-    //QJsonDocument jsonDoc = QJsonDocument::fromJson(jsonString.toUtf8());
     QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
     QJsonObject jsonObj = jsonDoc.object();
 
@@ -74,11 +72,9 @@ void MainWindow::unpackData(const QByteArray& data)
             Token = "";
             path = "";
             areaId = -1;
-            UpdateList();
-            //рисуем точки и линии
+            UpdateList();//переписываем список
             DrawScene();//очищаем сцену
         }
-
         return;
     }
 
@@ -88,9 +84,13 @@ void MainWindow::unpackData(const QByteArray& data)
     qDebug() << jsonCoords;
     for (int i = 0; i < jsonCoords.size(); i++)
     {
+        int w = scaled_img.width();//размер картинки на экране
+        double coef = ((double) PlanW) /((double) w);//во сколько раз изначальный размер больше того который на экране
+
         jsonCoord = jsonCoords[i].toObject();
         flag = true;
-        Coordinate c = Coordinate(jsonCoord["x"].toInt(), jsonCoord["y"].toInt(),
+        //так как координаты относительно изначального размера то делим их на коэффициент
+        Coordinate c = Coordinate(jsonCoord["x"].toInt()/coef, jsonCoord["y"].toInt()/coef,
                 QDateTime::fromString(jsonCoord["dateTime"].toString(), Qt::ISODate));
 
         //int index = -1;
@@ -270,6 +270,8 @@ void MainWindow::onAreaChoosed(const QString& data)
     path = data.split("\n").first();
     areaId = data.split("\n").last().toInt();
     DrawScene();
+    QImage image(path);
+    PlanW = image.width();
 }
 
 void MainWindow::DrawScene()//отрисовка сцены

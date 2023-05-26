@@ -40,6 +40,7 @@ private:
     int port = 8080;
     int interval = 900;//интервал промотки кнопками
 
+    int PlanW = 0; //изначальная высота картинки
 
     //служебное
     Ui::MainWindow  *ui;
