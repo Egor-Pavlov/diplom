@@ -101,7 +101,7 @@ void Dialog::on_okButton_clicked()
         // Создаем запрос
         QNetworkRequest request(url);
 
-        qDebug() << url;
+        //qDebug() << url;
         // Отправляем GET-запрос
         QNetworkReply* reply = manager.get(request);
 
@@ -138,7 +138,7 @@ void Dialog::on_okButton_clicked()
         else
         {
             // Возникла ошибка при выполнении запроса
-            qDebug() << "Error:" << reply->errorString();
+            //qDebug() << "Error:" << reply->errorString();
         }
         // Освобождаем ресурсы
         reply->deleteLater();

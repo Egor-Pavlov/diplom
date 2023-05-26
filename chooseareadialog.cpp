@@ -26,6 +26,7 @@ ChooseAreaDialog::ChooseAreaDialog(QWidget *parent) :
 void ChooseAreaDialog::onBuildingClicked()
 {
 
+    ui->AreaList->clear();
     int id = Buildings[ui->BuildingsList->currentRow()].GetId();
 
     QUrl url("http://"+IP+":"+QString::number(port)+"/api/arealist");
@@ -167,6 +168,7 @@ void ChooseAreaDialog::sendData()
 void ChooseAreaDialog::closeEvent(QCloseEvent *event)
 {
     ui->BuildingsList->clear();
+    ui->AreaList->clear();
     //ui->passwordTextBox->setText("");
     QDialog::closeEvent(event);
 }

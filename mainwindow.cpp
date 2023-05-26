@@ -81,7 +81,7 @@ void MainWindow::unpackData(const QByteArray& data)
     QJsonArray jsonCoords = jsonObj["coords"].toArray();
     bool flag = true;
     QJsonObject jsonCoord;
-    qDebug() << jsonCoords;
+    //qDebug() << jsonCoords;
     for (int i = 0; i < jsonCoords.size(); i++)
     {
         int w = scaled_img.width();//размер картинки на экране
@@ -212,7 +212,7 @@ void MainWindow::sendToServer(QString str)
     // Создаем запрос
     QNetworkRequest request(url);
 
-    qDebug() << url;
+    //qDebug() << url;
     // Отправляем GET-запрос
     QNetworkReply* reply = manager.get(request);
 
@@ -232,7 +232,7 @@ void MainWindow::sendToServer(QString str)
     else
     {
         // Возникла ошибка при выполнении запроса
-        qDebug() << "Error:" << reply->errorString();
+        //qDebug() << "Error:" << reply->errorString();
     }
 
     // Освобождаем ресурсы
@@ -432,5 +432,13 @@ void MainWindow::on_BackButt_clicked()
 
 void MainWindow::on_ForwardButt_clicked()
 {
-    ui->dateTimeEdit->setDateTime(ui->dateTimeEdit->dateTime().addSecs(interval));
+    if(ui->dateTimeEdit->dateTime().addSecs(interval) < QDateTime::currentDateTime())
+        ui->dateTimeEdit->setDateTime(ui->dateTimeEdit->dateTime().addSecs(interval));
 }
+
+void MainWindow::on_dateTimeEdit_dateTimeChanged(const QDateTime &dateTime)
+{
+    if(dateTime > QDateTime::currentDateTime())
+        ui->dateTimeEdit->setDateTime(QDateTime::currentDateTime());
+}
+

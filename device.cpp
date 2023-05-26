@@ -38,6 +38,8 @@ void Device::RecalcCoord(double coef)//коэф - отношение старо�
 void Device::UpdateCoord(Coordinate point)
 {
 
+    if(point.GetDateTime() < CurrentCoord.GetDateTime())
+        ClearRoute();
     //если работаем в режиме построения траектории, то сохраним предыдущую координату.
     if(RouteVisible)
     {

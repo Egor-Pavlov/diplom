@@ -87,6 +87,7 @@ private slots:
     void on_showDevicesButton_clicked();
     void on_BackButt_clicked();
     void on_ForwardButt_clicked();
+    void on_dateTimeEdit_dateTimeChanged(const QDateTime &dateTime);
 };
 
 #endif // MAINWINDOW\_H
